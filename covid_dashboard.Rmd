@@ -1,0 +1,88 @@
+---
+title: "COVID-19 in Nova Scotia (as of `r Sys.time()`)"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: bootstrap
+orientation: columns
+vertical_layout: fill
+---
+  
+
+```{r setup, include=FALSE}
+require(tidyverse)
+require(plotly)
+require(lubridate)
+
+covid <- read.csv("https://health-infobase.canada.ca/src/data/covidLive/covid19-download.csv")
+
+
+head(covid)
+ns <- covid[covid$prname=="Nova Scotia",]
+
+```
+
+
+Charts
+=======================================================================
+
+Column 
+-----------------------------------------------------------------------
+
+### Positive test rate
+
+```{r}
+ggplotly(ggplot() + geom_point(data=ns, aes(ymd(date), percentoday)) + geom_line(data=ns, aes(ymd(date), percentoday), group=1) +
+ ylab("Percentage of positive tests") +
+           xlab("Date"))
+```
+
+### Daily case count
+
+```{r}
+ggplotly(ggplot() + geom_point(data=ns, aes(ymd(date), numtoday)) + geom_line(data=ns, aes(ymd(date), numtoday), group=1) +
+           ylab("Number of cases") +
+           xlab("Date"))
+
+```
+
+
+Column 
+-----------------------------------------------------------------------
+
+### Testing 
+
+```{r}
+ggplotly(ggplot() + geom_point(data=ns, aes(ymd(date), numtestedtoday)) + geom_line(data=ns, aes(ymd(date), numtestedtoday), group=1) +
+           ylab("Number of tests") +
+           xlab("Date"))
+```
+
+
+### Cumulative case count (aka. "THE CURVE")
+
+```{r}
+ggplotly(ggplot() + geom_point(data=ns, aes(ymd(date), numtotal)) + geom_line(data=ns, aes(ymd(date), numtotal), group=1) +
+           ylab("Cumulative cases") +
+           xlab("Date"))
+```
+
+
+
+
+Table
+========================================================================
+
+Column {data-width=400}
+-------------------------------------------------------------------------
+
+### Monthly stats
+
+```{r, echo=F}
+table <- ns %>%
+  mutate(month=month(ymd(date)))%>%
+  group_by(month) %>%
+  summarize(cases_per_day = mean(numtoday),
+            median_cases = median(numtoday),
+            total_cases = sum(numtoday))
+knitr::kable(table)
+```
