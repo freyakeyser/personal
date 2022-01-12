@@ -1,0 +1,160 @@
+---
+title: "Sackville Lakes Park and Trails User Survey"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, warning=F, message=F}
+knitr::opts_chunk$set(echo = TRUE)
+require(tidyr)
+require(dplyr)
+require(ggplot2)
+
+park <- read.csv("C:/Users/keyserf/Downloads/Sackville Lakes Provincial Park User Survey/Sackville Lakes Provincial Park User Survey.csv")
+
+sections <- data.frame(name=names(park)[2:ncol(park)], section=c(rep("Access", 3), rep("Trail", 8), rep("User", 4), rep("Feedback", 2)))
+
+park$ID <- 1:nrow(park)
+park <- dplyr::select(park, -Timestamp) %>% pivot_longer(!ID)
+park$value[park$value==""] <- NA
+park <- park[!is.na(park$value),]
+
+park <- left_join(park, sections)
+
+```
+
+There were `r length(unique(park$ID))` responses to the survey. 
+
+## Park access and the park community
+
+```{r, echo=F, warning=F, message=F}
+access <- park[park$section=="Access",] %>%
+  pivot_wider(ID)
+
+names(access) <- c("ID", "Location", "Transportation method", "Distance", "Preferred trails")
+
+access$Distance <- factor(access$Distance, levels = c("500m or less", "500m-1km", "1-5km"))
+
+p1 <- ggplot() + geom_bar(data=access[!is.na(access$`Transportation method`),], aes(`Transportation method`, fill=Distance)) + theme_bw() +
+  ylab("Number of responses") +
+  xlab("Transportation method") +
+  scale_fill_brewer(palette="Set1", type = "qual")
+
+
+```
+
+All respondents live in the Sackville area. Respondents who live within 1km of a park entrance were more likely to ride a bike or walk to the park than those who live 1-5km away. 
+
+```{r, echo=F, warning=F, message=F}
+print(p1)
+```
+
+
+## Trail usage
+
+```{r, include=F, echo=F, warning=F, message=F}
+trails <- park[park$section=="Trail",] %>%
+  pivot_wider(ID)
+names(trails) <- c("ID", "Preferred", "On", "Off", "People", "Time", "How", "Dog", "Motivation")
+
+fave <- trails[, c("ID", "Preferred")] %>%
+  separate(col = `Preferred`, sep = ";", into = paste0("trails", 1:6)) %>%
+  pivot_longer(-ID) %>%
+  filter(!is.na(value)) %>%
+  select(-name)
+
+fave$value <- gsub("\\(.*","",fave$value)
+fave$value <- gsub(" Trail ","",fave$value)
+
+p2 <- ggplot() + geom_bar(data=fave, aes(value), fill="#4daf4a") + theme_bw() + xlab("Trails") + ylab("Number of respondents who use")
+
+how <- trails[, c("ID", "How")]
+how2 <- NULL
+for(i in 1:nrow(how)){
+  test <- data.frame(ID = i, How=unlist(strsplit(how[i,]$How, split = ";")))
+  how2 <- rbind(how2, test)
+}
+
+p3 <- ggplot() + geom_bar(data=how2, aes(How), fill="#4daf4a")  + xlab("") + ylab("Number of respondents") + theme_bw()
+
+howtrail <- full_join(how2,fave)
+
+p4 <- ggplot() + geom_bar(data=howtrail, aes(value, fill=How), position = position_dodge(preserve = "single")) +  theme_bw() + coord_flip()+
+  ylab("Number of responses") +
+  xlab("Trail") +
+  scale_fill_brewer(palette="Set1", type = "qual", name=NULL)
+
+freq <- trails[,c("ID", "On", "Off")]
+
+howtrail <- full_join(howtrail, freq)
+
+howtrail$On <- factor(howtrail$On, levels=c("Daily", "Weekly", "Once or twice per month", "Less than once a month"))
+howtrail$Off <- factor(howtrail$Off, levels=c("Daily", "Weekly", "Once or twice per month", "Less than once a month"))
+
+p5 <- ggplot() + geom_bar(data=howtrail, aes(value, fill=On), position = position_dodge(preserve = "single")) +  theme_bw() + coord_flip()+
+  ylab("Number of responses") +
+  xlab("Trail") +
+  scale_fill_brewer(palette="Set1", type = "qual", name=NULL) + 
+  ggtitle("On-season usage")
+
+p6 <- ggplot() + geom_bar(data=howtrail, aes(value, fill=Off), position = position_dodge(preserve = "single")) +  theme_bw() + coord_flip()+
+  ylab("Number of responses") +
+  xlab("Trail") +
+  scale_fill_brewer(palette="Set1", type = "qual", name=NULL) + 
+  ggtitle("Off-season usage")
+
+ggplot() + geom_bar(data=trails, aes(People))
+
+ggplot() + geom_bar(data=trails, aes(Dog))
+
+time <- trails[,c("ID", "Time")]
+time$Time <- factor(time$Time, levels=c("30 minutes - 1 hour", "1-2 hours", "More than 2 hours"))
+p7 <- ggplot() + geom_bar(data=time, aes(Time), fill="#4daf4a")  + xlab("") + ylab("Number of respondents") +theme_bw()
+
+timefreq <- full_join(freq, time)
+timefreq$On <- factor(timefreq$On, levels=c("Daily", "Weekly", "Once or twice per month", "Less than once a month"))
+p8 <- ggplot() + geom_bar(data=timefreq, aes(On, fill=Time), position = position_dodge(preserve = "single")) +  theme_bw() + coord_flip()+
+  ylab("Number of responses") +
+  xlab("On-season visit frequency") +
+  scale_fill_brewer(palette="Set1", type = "qual", name=NULL) 
+
+motiv1 <- trails[, c("ID", "Motivation")]
+motiv <- NULL
+for(i in 1:nrow(motiv1)){
+  test <- data.frame(ID = i, Motivation=unlist(strsplit(motiv1[i,]$Motivation, split = ";")))
+  motiv <- rbind(motiv, test)
+}
+
+p9 <- ggplot() + geom_bar(data=motiv, aes(Motivation), fill="#4daf4a")  + xlab("") + ylab("Number of respondents") + theme_bw()
+
+```
+
+The Great Oak Trail was the trail most frequently used by respondents, and the majority of respondents walk or hike on the trails. 
+
+```{r, echo=F, warning=F, message=F}
+print(p4)
+```
+
+In the spring, summer and fall, respondents visit the park more frequently than in the winter, however respondents reported using the park for winter activities like snowshoeing and cross-country skiing. Few respondents reported spending more than 2 hours at the park during each visit. There was no apparent pattern in the frequency and duration of visits. 
+
+```{r, echo=F, warning=F, message=F}
+print(p5)
+print(p6)
+print(p8)
+```
+
+Respondents normally visit the park in small groups or alone. `r round(length(trails$Dog[trails$Dog=="Yes"])/length(trails$Dog)*100, 0)`% of respondents bring a dog to the park with them. Respondents use the park to connect with nature, exercise, for recreation, and to access Second Lake.
+
+```{r, echo=F, warning=F, message=F}
+print(p9)
+```
+
+## User engagement
+
+See google summary
+
+
+## Feedback and ideas
+
+See google summary
